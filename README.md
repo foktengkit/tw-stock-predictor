@@ -2,6 +2,17 @@
 
 台灣股市即時看盤 + 股價預測網站，介面參考 TradingView：中間是可互動的 K 線圖，右側是自選股與五檔報價，下方是 AI 預測、技術分析與熱力圖。
 
+有兩個版本：
+
+| | 私人版（本機執行） | 公開版（GitHub Pages） |
+| --- | --- | --- |
+| 網址 | <http://localhost:3000> | <https://foktengkit.github.io/tw-stock-predictor/> |
+| 報價 | 盤中即時（證交所 MIS，延遲 30–60 秒） | 每個交易日晚間更新的收盤資料 |
+| 資料來源 | MIS、Yahoo、官方盤後資料 | 只用官方盤後資料（證交所、櫃買中心、公開資訊觀測站） |
+| K 線週期 | 1 / 5 / 15 / 60 分、日、週、月 | 日、週、月 |
+
+公開版的做法見下方「[公開版（GitHub Pages）](#公開版github-pages)」。
+
 ## 啟動
 
 需要 Node.js 22.13 以上（使用內建的 SQLite）。
@@ -171,6 +182,37 @@ Yahoo 的歷史 K 棒只算盤中整股。所以零股比例越高的股票，�
 - **營收年增率加速是唯一通過門檻、而且每年都是正值的因子。** 但效果很小：最高與最低兩組的 20 日報酬差只有 0.68%。台股來回一趟的成本約 0.59%（手續費 0.1425% × 2，加上證交稅 0.3%），扣掉之後幾乎沒有剩下。
 - 因此這些因子只在「籌碼・營收」分頁顯示本股的排名與檢驗結果，**沒有加進股價預測**。
 
+## 公開版（GitHub Pages）
+
+網址：<https://foktengkit.github.io/tw-stock-predictor/>
+
+公開版沒有伺服器，是每天重新產生的靜態網站：
+
+1. **GitHub Actions**（`.github/workflows/publish.yml`）每個平日台北時間 22:30 執行：從 Actions 快取還原官方資料庫，補抓新資料（第一次約 3 小時，之後幾分鐘）。
+2. `scripts/build-public.js` 把資料庫轉成靜態 JSON：每檔股票的日 K、籌碼與營收、報價、因子檢驗、休市日曆、除權息預告，連同前端一起輸出到 `dist/`（約 150 MB）。
+3. 發布到 GitHub Pages。建置失敗（例如官方網站暫時連不上）時不會發布，網站維持前一天的版本。
+
+前端與私人版是同一份程式。`public/js/util.js` 的 `api()` 在公開版改呼叫 `public/js/static-api.js` 讀靜態檔案；預測模型與技術評等直接在瀏覽器計算。
+
+**為什麼只放盤後資料**：轉播證交所即時行情需要授權，Yahoo 的資料也不能轉載；盤後資料屬於政府開放資料，註明出處即可使用。詳見上方「使用聲明」。
+
+和私人版的差異：
+
+- 沒有盤中報價、五檔與分線（分線沒有官方公開的歷史資料）
+- 還原權息由官方除權息資料自行計算：普通股超過漲跌幅限制、又沒有除權息紀錄的跳空（減資、分割），視為公司行動而非漲跌
+- **上櫃股票的成交量只含盤中整股**（不含零股、鉅額、盤後）。櫃買中心的官方總量要逐檔逐月下載，不適合每天全部更新；上市股票則是官方總量
+
+本機預覽：
+
+```bash
+npm run sync -- --otc-daily-years 5    # 上櫃股價補到 5 年、加權與櫃買指數歷史
+npm run build:public                   # 輸出到 dist/
+```
+
+`dist/` 要用網頁伺服器開啟（例如 `python -m http.server -d dist`），直接開檔案會因瀏覽器安全限制無法讀取資料。
+
+另外，`.github/workflows/check-sources.yml` 每個平日 22:00 檢查所有官方資料來源：連得上嗎？格式有沒有變？（例如「三大法人合計 = 外資 + 投信 + 自營商」）。失敗時 GitHub 會寄信通知。也可以在本機執行 `npm run check-sources`。
+
 ## Python 虛擬交易回測（backtest/）
 
 把含 `Date`、`Close`、`Signal` 欄位的 DataFrame 丟進去，就會輸出文字報告。報告內容包括總報酬、年化報酬、夏普比率、最大回撤與發生時間、勝率與盈虧比，並附上「買進持有」對照。
@@ -206,16 +248,24 @@ lib/
     sources.js       官方資料下載與解析（證交所、櫃買中心、公開資訊觀測站）
     sync.js          回補與每日同步（限速、續傳）；node lib/official/sync.js
     db.js, query.js  SQLite 資料庫與查詢
+scripts/
+  build-public.js    公開版建置：官方資料 → 靜態 JSON + 前端（dist/）
+  check-sources.js   官方資料來源健康檢查
 test/
   leakage.test.js    前視偏差、時間切分、除權息、技術指標因果性測試（npm test）
   factors.test.js    因子檢驗的前視偏差測試（月營收公布時間、隔日進場、除權息）
   mis.test.js        MIS 即時報價解析（盤中實際回應格式）
+  static-data.test.js 公開版的還原權息、公司行動斷點、週 / 月 K 合併
 public/
   index.html, css/style.css
   js/indicators.js   技術指標函式庫（前後端共用）
   js/chart.js        圖表（TradingView Lightweight Charts v5）
   js/app.js          主程式：載入、即時更新、工具列
+  js/static-api.js   公開版：/api/* 改讀靜態檔案，預測在瀏覽器計算
   js/*.js            自選股、報價、搜尋、預測、技術分析、熱力圖、WebSocket
+.github/workflows/
+  publish.yml        公開版每日建置與發布
+  check-sources.yml  官方資料來源每日檢查
 ```
 
 ## API

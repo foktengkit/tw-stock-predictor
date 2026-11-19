@@ -96,6 +96,31 @@ async function step(name, fn) {
     check('除權除息', a.length > 100 && b.length > 100, `${y} 年上市 ${a.length} 筆、上櫃 ${b.length} 筆`);
   });
 
+  await step('指數月資料', async () => {
+    const ym = date.slice(0, 7);
+    const a = await src.twseIndexMonth(ym);
+    const b = await src.tpexIndexMonth(ym);
+    const ta = a && a.find((r) => r.date === date), tb = b && b.find((r) => r.date === date);
+    check('指數月資料', !!(ta && ta.close > 1000 && tb && tb.close > 50), `${date} 加權 ${ta && ta.close}、櫃買 ${tb && tb.close}`);
+  });
+
+  // 以下是公開版建置會用到的其他官方來源
+  await step('上市櫃股票清單（OpenAPI）', async () => {
+    const stocks = require('../lib/stocklist');
+    await stocks.refresh();
+    const all = stocks.all();
+    const tse = all.filter((s) => s.market === 'tse' && s.type === 'stock').length;
+    const otc = all.filter((s) => s.market === 'otc' && s.type === 'stock').length;
+    check('上市櫃股票清單（OpenAPI）', tse > 1000 && otc > 700, `上市 ${tse} 檔、上櫃 ${otc} 檔`);
+  });
+
+  await step('證交所休市日曆', async () => {
+    const holidays = require('../lib/holidays');
+    await holidays.refreshOfficial();
+    const years = holidays.info().officialYears;
+    check('證交所休市日曆', years.includes(date.slice(0, 4)), `已取得 ${years.join('、') || '無'} 年`);
+  });
+
   await step('月營收（公開資訊觀測站）', async () => {
     // 次月 10 日前才申報完，所以抓「上上個月」一定齊全
     const d = new Date(`${date.slice(0, 7)}-01T00:00:00Z`);

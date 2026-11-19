@@ -9,9 +9,8 @@ on:
         description: 建置完成後發布到 GitHub Pages
         type: boolean
         default: false
-  # 正式上線後啟用：平日台北時間 22:30（融資融券約晚間才公布）
-  # schedule:
-  #   - cron: '30 14 * * 1-5'
+  schedule:
+    - cron: '30 14 * * 1-5' # 平日台北時間 22:30（融資融券約晚間才公布；還沒公布的隔天會補上）
 
 permissions:
   contents: read

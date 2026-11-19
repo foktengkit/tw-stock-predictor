@@ -81,7 +81,11 @@ async function main() {
   await stocks.refresh();
   const list = stocks.all();
   const byCode = new Map(list.map((s) => [s.code, s]));
-  log(`股票清單 ${list.length} 檔`);
+  // 清單取得失敗或只拿到一個市場時中止：建置失敗就不會發布，網站維持前一版，而不是變成空白
+  const nTse = list.filter((s) => s.market === 'tse' && s.type === 'stock').length;
+  const nOtc = list.filter((s) => s.market === 'otc' && s.type === 'stock').length;
+  if (nTse < 1000 || nOtc < 700) throw new Error(`股票清單不完整（上市 ${nTse}、上櫃 ${nOtc} 檔），中止建置`);
+  log(`股票清單 ${list.length} 檔（上市 ${nTse}、上櫃 ${nOtc}）`);
 
   // 除權息（還原權息與「參考價」用）
   const exByCode = new Map();
