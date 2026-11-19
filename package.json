@@ -1,0 +1,23 @@
+{
+  "name": "tw-stock-predictor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "台股觀測站：台灣股市即時報價、K 線圖、技術分析與統計模型股價預測",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test",
+    "sync": "node lib/official/sync.js --daily-years 5 --chips-years 2.5 --revenue-years 5",
+    "factors": "node lib/factors.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.3.0",
+    "lightweight-charts": "^5.2.1",
+    "ws": "^8.22.1"
+  }
+}
