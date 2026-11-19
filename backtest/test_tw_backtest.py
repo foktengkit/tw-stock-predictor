@@ -171,6 +171,10 @@ def test_機率訊號要提醒門檻():
 
 
 if __name__ == "__main__":
+    import sys
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")  # 輸出導向檔案時，Windows 繁中編碼（cp950）印不出 ✔ 等符號，不要因此中斷
+
     tests = [(k, v) for k, v in dict(globals()).items() if k.startswith("test_")]
     for name, fn in tests:
         fn()

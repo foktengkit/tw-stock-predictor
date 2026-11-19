@@ -545,6 +545,10 @@ def _format_report(res: BacktestResult) -> str:
 # 範例：直接執行 python tw_backtest.py
 # ════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
+    import sys
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")  # 輸出導向檔案時，Windows 繁中編碼（cp950）印不出 ✔ 等符號，不要因此中斷
+
     rng = np.random.default_rng(42)
     dates = pd.bdate_range("2023-01-02", periods=750)
     close = 100 * np.exp(np.cumsum(rng.normal(0.0004, 0.018, len(dates))))
