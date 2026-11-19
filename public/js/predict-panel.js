@@ -2,11 +2,11 @@ import { fmtPrice, fmtPct, dir, esc, isNum } from './util.js';
 
 export function ratingLabel(score) {
   if (!isNum(score)) return { key: 'na', text: '—' };
-  if (score >= 0.5) return { key: 'strong-buy', text: '強力買進' };
-  if (score >= 0.1) return { key: 'buy', text: '買進' };
+  if (score >= 0.5) return { key: 'strong-buy', text: '強烈偏多' };
+  if (score >= 0.1) return { key: 'buy', text: '偏多' };
   if (score > -0.1) return { key: 'neutral', text: '中立' };
-  if (score > -0.5) return { key: 'sell', text: '賣出' };
-  return { key: 'strong-sell', text: '強力賣出' };
+  if (score > -0.5) return { key: 'sell', text: '偏空' };
+  return { key: 'strong-sell', text: '強烈偏空' };
 }
 
 const pct = (v, d = 1) => (isNum(v) ? `${(v * 100).toFixed(d)}%` : '—');

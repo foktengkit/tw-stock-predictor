@@ -97,6 +97,8 @@ button { cursor: pointer; }
 .conn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
 .conn.on .dot { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18); animation: pulse 2s infinite; }
 .conn.off .dot { background: var(--up); }
+.conn.static .dot { background: var(--accent); }
+.toast a { color: var(--accent); }
 @keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.05); } }
 .mstatus-wrap { position: relative; }
 .mstatus { display: flex; align-items: center; gap: 8px; white-space: nowrap; background: none; border: 0; padding: 4px 6px; border-radius: var(--radius); }

@@ -1,8 +1,8 @@
-import { api, fmtPrice, esc, isNum, TF_LABEL } from './util.js';
+import { api, fmtPrice, esc, isNum, TF_LABEL, STATIC } from './util.js';
 import { ratingLabel } from './predict-panel.js';
 
-const TFS = ['15m', '60m', 'D', 'W', 'M'];
-const ACTION = { 1: ['買進', 'buy'], '-1': ['賣出', 'sell'], 0: ['中立', 'neutral'] };
+const TFS = STATIC ? ['D', 'W', 'M'] : ['15m', '60m', 'D', 'W', 'M']; // 公開版沒有分線
+const ACTION = { 1: ['偏多', 'buy'], '-1': ['偏空', 'sell'], 0: ['中立', 'neutral'] };
 
 function gaugeSvg(score) {
   const cx = 100, cy = 100, r = 80;
@@ -21,7 +21,7 @@ function gaugeSvg(score) {
   const lbl = (deg, text, anchor) => { const [x, y] = pt(deg, r + 4); return `<text x="${x.toFixed(1)}" y="${(y + (deg === 90 ? -6 : 12)).toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="var(--muted)">${text}</text>`; };
   return `<svg viewBox="-12 0 224 112" role="img" aria-label="評等儀表">
     ${arcs}
-    ${lbl(180, '強力賣出', 'start')}${lbl(90, '中立', 'middle')}${lbl(0, '強力買進', 'end')}
+    ${lbl(180, '強烈偏空', 'start')}${lbl(90, '中立', 'middle')}${lbl(0, '強烈偏多', 'end')}
     ${isNum(score) ? `<line x1="${cx}" y1="${cy}" x2="${nx.toFixed(2)}" y2="${ny.toFixed(2)}" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>` : ''}
     <circle cx="${cx}" cy="${cy}" r="5" fill="var(--text)"/>
   </svg>`;
@@ -33,7 +33,7 @@ function gauge(title, group, main = false) {
   return `<div class="gauge${main ? ' main' : ''}">
     <h5>${title}</h5>${gaugeSvg(group.score)}
     <div class="glabel ${cls}">${l.text}</div>
-    <div class="gcount"><span>賣出<b>${group.counts.sell}</b></span><span>中立<b>${group.counts.neutral}</b></span><span>買進<b>${group.counts.buy}</b></span></div>
+    <div class="gcount"><span>偏空<b>${group.counts.sell}</b></span><span>中立<b>${group.counts.neutral}</b></span><span>偏多<b>${group.counts.buy}</b></span></div>
   </div>`;
 }
 
@@ -53,8 +53,8 @@ function pivotTable(pv) {
     : String(pv.basedOn).replace(/-/g, '/');
   return `<div><h4>樞紐點（依 ${based} K 棒）</h4>
     <table class="t"><thead><tr><th></th><th class="r">經典</th><th class="r">費波那契</th><th class="r">卡瑪利拉</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="note" style="margin-top:8px">R 為壓力、S 為支撐。總結＝移動平均線與震盪指標兩組訊號（買進數 − 賣出數）÷ 指標數的平均。</div>
-    <div class="note" style="margin-top:6px">⚠️ 這是技術指標的訊號統計，不是買賣建議。以台灣 50 成分股回測，評等與之後 20 日漲跌的關聯很弱：「強力賣出」之後平均仍是上漲。</div></div>`;
+    <div class="note" style="margin-top:8px">R 為壓力、S 為支撐。總結＝移動平均線與震盪指標兩組訊號（偏多數 − 偏空數）÷ 指標數的平均。</div>
+    <div class="note" style="margin-top:6px">⚠️ 這是技術指標的訊號統計，不是買賣建議。以台灣 50 成分股回測，評等與之後 20 日漲跌的關聯很弱：「強烈偏空」之後平均仍是上漲。</div></div>`;
 }
 
 export class TechPanel {

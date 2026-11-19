@@ -35,7 +35,11 @@ export function fmtChange(v, digits = 2) {
 export const dir = (v) => (!isNum(v) || v === 0 ? 'flat' : v > 0 ? 'up' : 'down');
 export const arrow = (v) => (!isNum(v) || v === 0 ? '' : v > 0 ? '▲' : '▼');
 
+/** 公開版（GitHub Pages）：沒有伺服器，資料來自每日建置的靜態檔案 */
+export const STATIC = !!(window.TWS_CONFIG && window.TWS_CONFIG.static);
+
 export async function api(path, { signal } = {}) {
+  if (STATIC) return (await import('./static-api.js')).staticApi(path);
   const r = await fetch(path, { signal });
   let body = null;
   try { body = await r.json(); } catch { /* ignore */ }

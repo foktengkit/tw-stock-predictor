@@ -9,7 +9,9 @@
     "dev": "node --watch server.js",
     "test": "node --test",
     "sync": "node lib/official/sync.js --daily-years 5 --chips-years 2.5 --revenue-years 5",
-    "factors": "node lib/factors.js"
+    "factors": "node lib/factors.js",
+    "build:public": "node scripts/build-public.js",
+    "check-sources": "node scripts/check-sources.js"
   },
   "engines": {
     "node": ">=22.13"

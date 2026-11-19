@@ -1,0 +1,71 @@
+# 公開版網站：同步官方盤後資料 → 建置靜態網站 → 發布到 GitHub Pages
+# 官方資料庫存在 Actions 快取裡，每次只補新資料（第一次約 3 小時，之後幾分鐘）
+name: 公開版網站
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 建置完成後發布到 GitHub Pages
+        type: boolean
+        default: false
+  # 正式上線後啟用：平日台北時間 22:30（融資融券約晚間才公布）
+  # schedule:
+  #   - cron: '30 14 * * 1-5'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: 還原官方資料庫
+        uses: actions/cache/restore@v4
+        with:
+          path: data
+          key: official-data-${{ github.run_id }}
+          restore-keys: official-data-
+
+      - name: 同步官方資料
+        timeout-minutes: 310 # 第一次回補很久；逾時也會繼續下一步存檔，下次接著抓
+        run: node lib/official/sync.js --daily-years 5 --chips-years 2.5 --revenue-years 5 --otc-daily-years 5
+
+      - name: 儲存官方資料庫
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data
+          key: official-data-${{ github.run_id }}
+
+      - name: 建置公開版
+        run: node scripts/build-public.js --out dist
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: github.event_name == 'schedule' || inputs.deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

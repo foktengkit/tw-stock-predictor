@@ -50,16 +50,20 @@ export function renderQuote(el, symbol, q) {
     <div class="q-name">${esc(q.name || symbol.name)}<span>${esc(isIndex ? '' : symbol.code)}</span> <span class="tag">${isIndex ? '指數' : MARKET_LABEL[symbol.market] || ''}</span></div>
     <div class="q-full">${esc(q.fullName || '')}</div>
     <div class="q-price ${cls}"><b class="num">${fmtPrice(q.price)}</b><span class="num">${arrow(q.change)} ${fmtChange(q.change)} (${fmtPct(q.changePct)})</span></div>
-    <div class="q-time" title="證交所公開即時資訊：快照約 25 秒更新一次，比實際時間延遲約 30–60 秒">最後成交 ${esc(t)} · 證交所公開資料（延遲約 1 分鐘內）</div>
+    ${q.static
+      ? `<div class="q-time" title="資料來自證交所、櫃買中心的每日收盤行情，每個交易日晚間更新">收盤 ${esc(t.slice(0, 10))} · 官方盤後資料（非即時）</div>`
+      : `<div class="q-time" title="證交所公開即時資訊：快照約 25 秒更新一次，比實際時間延遲約 30–60 秒">最後成交 ${esc(t)} · 證交所公開資料（延遲約 1 分鐘內）</div>`}
     <div class="q-grid">
       ${cell('開盤', fmtPrice(q.open), pcls(q.open))}
-      ${cell('昨收', fmtPrice(q.prev))}
+      ${cell(q.static && !isIndex ? '參考價' : '昨收', fmtPrice(q.prev))}
       ${cell('最高', fmtPrice(q.high), pcls(q.high))}
       ${cell('最低', fmtPrice(q.low), pcls(q.low))}
-      ${isIndex ? '' : `<div title="證交所即時報價的累積成交量。統計口徑與日 K（Yahoo）及證交所官方日成交量不同，通常較少"><span>盤中成交量</span><span>${fmtInt(q.volume)} 張</span></div>`}
+      ${isIndex ? '' : q.static
+        ? `<div title="${symbol.market === 'otc' ? '櫃買中心每日收盤行情的成交量，只含盤中整股（不含零股、鉅額與盤後交易）' : '證交所官方總成交量（含零股、鉅額與盤後交易）'}"><span>成交量</span><span>${fmtInt(q.volume)} 張</span></div>`
+        : `<div title="證交所即時報價的累積成交量。統計口徑與日 K（Yahoo）及證交所官方日成交量不同，通常較少"><span>盤中成交量</span><span>${fmtInt(q.volume)} 張</span></div>`}
       ${isIndex ? '' : cell('成交值(估)', fmtBig((q.volume || 0) * 1000 * (q.price || 0)))}
-      ${isIndex ? '' : cell('漲停', fmtPrice(q.limitUp), 'up')}
-      ${isIndex ? '' : cell('跌停', fmtPrice(q.limitDown), 'down')}
+      ${isIndex || q.static ? '' : cell('漲停', fmtPrice(q.limitUp), 'up')}
+      ${isIndex || q.static ? '' : cell('跌停', fmtPrice(q.limitDown), 'down')}
     </div>
     ${range}
     ${book}`;

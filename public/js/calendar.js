@@ -48,6 +48,7 @@ export class CalendarPanel {
   }
 
   render(c) {
+    if (c.static) return this.renderStatic(c);
     const t = c.today;
     const todayHtml = t.tradingDay
       ? `<b class="ok">交易日</b>${c.checks.mis.openedToday ? ' · 已確認開盤' : ''}`
@@ -74,6 +75,25 @@ export class CalendarPanel {
       <div class="chk-row"><span>開盤確認（每次報價）</span><span>${misText} · ${ago(m.checkedAt)}</span></div>
       ${c.calendar.lastChange ? `<div class="chk-row"><span>最近一次異動</span><span>${esc(c.calendar.lastChange.reason)} · ${ago(c.calendar.lastChange.at)}</span></div>` : ''}
       <div class="cal-note">依證交所規定：臺北市宣布全日或上午停止上班時集中市場全日休市；只宣布下午停班則照常開盤。平日 09:10 後若仍無當日交易資料，也會判定為臨時休市。</div>`;
+  }
+
+  /** 公開版：沒有即時檢查，只顯示官方休市日曆與資料日期 */
+  renderStatic(c) {
+    const t = c.today;
+    const list = c.upcoming.slice(0, 8).map((h) => `
+      <li><span class="num">${md(h.date)}（${wd(h.date)}）</span><span>${esc(h.name)}</span><span class="tag">${esc(h.sourceLabel || '')}</span></li>`).join('')
+      || '<li><span></span><span class="muted">90 天內沒有休市日</span><span></span></li>';
+    const years = c.calendar.officialYears || [];
+    this.pop.innerHTML = `
+      <h4>台股休市日曆</h4>
+      <div class="cal-today">今天 ${md(t.date)}（${wd(t.date)}）　${t.tradingDay ? '<b class="ok">交易日</b>' : `<b class="closed">休市</b>：${esc(t.reason.name)}`}</div>
+      <div class="cal-sec">近期休市日（週末除外）</div>
+      <ul class="cal-list">${list}</ul>
+      <div class="cal-sec">資料狀態</div>
+      <div class="chk-row"><span>最新收盤資料</span><span>${md(c.dataDate)}</span></div>
+      <div class="chk-row"><span>網站更新時間</span><span>${ago(c.builtAt)}</span></div>
+      <div class="chk-row"><span>證交所休市日曆</span><span>${years.length ? `${years.join('、')} 年` : '<span class="up">未取得</span>'}</span></div>
+      <div class="cal-note">公開版每個交易日晚間依官方盤後資料自動更新，不提供盤中即時報價；颱風等臨時休市會在當天晚上的更新後反映。</div>`;
   }
 }
 

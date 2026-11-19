@@ -1,4 +1,4 @@
-import { $, $$, api, store, fmtPrice, fmtChange, fmtPct, dir, arrow, esc, taipeiClock, MARKET_LABEL } from './util.js';
+import { $, $$, api, store, fmtPrice, fmtChange, fmtPct, dir, arrow, esc, taipeiClock, MARKET_LABEL, STATIC } from './util.js';
 import { ChartView, INDICATORS } from './chart.js';
 import { Watchlist } from './watchlist.js';
 import { renderQuote } from './quote.js';
@@ -15,9 +15,10 @@ const norm = (c) => {
   return s === 'T00' || s === 'O00' ? s.toLowerCase() : s;
 };
 
+const INTRADAY = ['1m', '5m', '15m', '60m'];
 const state = {
   code: norm(decodeURIComponent(location.hash.slice(1))) || store.get('code', '2330'),
-  tf: store.get('tf', 'D'),
+  tf: STATIC && INTRADAY.includes(store.get('tf', 'D')) ? 'D' : store.get('tf', 'D'), // 公開版沒有分線
   tab: store.get('tab', 'predict'),
   symbol: null,
   quote: null,
@@ -54,7 +55,8 @@ const heat = new Heatmap($('#tab-heat'), { onSelect: (c) => loadSymbol(c) });
 
 const calPanel = new CalendarPanel($('#mstatus'), $('#calPop'));
 
-const live = new Live({
+// 公開版沒有伺服器，不建立即時連線
+const live = STATIC ? { subscribe() {} } : new Live({
   onQuotes: handleQuotes,
   onOfficial: handleOfficial,
   onCalendar: (msg) => {
@@ -198,7 +200,7 @@ function handleQuotes(msg) {
 function onQuote(q) {
   state.quote = q;
   renderQuote($('#quotePanel'), state.symbol || { code: q.code, name: q.name, market: q.market }, q);
-  chart.updateLive(q);
+  if (!STATIC) chart.updateLive(q); // 公開版的報價就是最後一根日 K
   document.title = `${q.isIndex ? '' : `${q.code} `}${q.name} ${fmtPrice(q.price)} ${arrow(q.change)}${fmtPct(q.changePct)} · 台股觀測站`;
 }
 
@@ -339,6 +341,27 @@ setInterval(() => { if (state.tab === 'tech' && state.status && state.status.act
 
 api('/api/market').then((j) => { renderStatus(j.status); renderIndices(j.indices); }).catch(() => {});
 api(`/api/quotes?codes=${watchlist.codes.join(',')}`).then((j) => watchlist.update(j.quotes)).catch(() => {});
+
+// ---------- 公開版 ----------
+const ABOUT = `<b>關於本站（公開版）</b><br>
+  個人研究專案。資料來自臺灣證券交易所、證券櫃檯買賣中心、公開資訊觀測站的<b>盤後公開資料</b>，每個交易日晚間自動更新，<b>不是即時報價</b>。<br>
+  預測與技術指標經回測驗證<b>沒有可靠的預測力</b>，僅供參考，<b>不構成任何投資建議</b>。<br>
+  <a href="https://github.com/foktengkit/tw-stock-predictor" target="_blank" rel="noopener">原始碼與方法說明</a>`;
+if (STATIC) {
+  for (const b of $$('#tfGroup button')) if (INTRADAY.includes(b.dataset.tf)) b.hidden = true;
+  const conn = $('#conn');
+  conn.className = 'conn static';
+  conn.title = '公開版：每個交易日晚間依官方盤後資料更新';
+  conn.querySelector('.txt').textContent = '每日盤後更新';
+  const about = document.createElement('button');
+  about.className = 'icon-btn about-btn';
+  about.title = '關於本站、資料來源與使用聲明';
+  about.setAttribute('aria-label', '關於本站');
+  about.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  about.addEventListener('click', () => toast(ABOUT, 20000));
+  $('#themeBtn').before(about);
+  if (!store.get('aboutSeen', false)) { toast(ABOUT, 20000); store.set('aboutSeen', true); }
+}
 
 window.__app = { chart, state, loadSymbol, setTf }; // 方便在瀏覽器主控台除錯
 setTab(state.tab, { expand: false });
