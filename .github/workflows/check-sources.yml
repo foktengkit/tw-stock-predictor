@@ -1,0 +1,20 @@
+# 官方資料來源健康檢查：連得上嗎？格式有沒有變？
+# 失敗時 GitHub 會寄信通知 repo 擁有者
+name: 官方資料來源檢查
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 14 * * 1-5' # 平日台北時間 22:00（融資融券約晚間才公布）
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: 檢查各資料來源
+        run: node scripts/check-sources.js
