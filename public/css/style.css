@@ -99,6 +99,7 @@ button { cursor: pointer; }
 .conn.off .dot { background: var(--up); }
 .conn.static .dot { background: var(--accent); }
 .toast a { color: var(--accent); }
+.toast button { margin-left: 8px; padding: 2px 10px; border: 1px solid var(--accent); border-radius: 4px; background: transparent; color: var(--accent); cursor: pointer; font: inherit; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.05); } }
 .mstatus-wrap { position: relative; }
 .mstatus { display: flex; align-items: center; gap: 8px; white-space: nowrap; background: none; border: 0; padding: 4px 6px; border-radius: var(--radius); }

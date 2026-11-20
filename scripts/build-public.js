@@ -45,9 +45,24 @@ function copyDir(from, to) {
   }
 }
 
-/** 把 CommonJS 模組包成瀏覽器可 import 的 ES module */
-function wrapCjs(src, { preamble = '' } = {}) {
-  return `// 自動產生（scripts/build-public.js）：伺服器端模組的瀏覽器版本，請勿直接修改\n${preamble}const module = { exports: {} };\n${src}\nexport default module.exports;\n`;
+/**
+ * 公開版的資料模組打包成單一檔案（js/static-api.js）：
+ * static-api.js + static-data.js + 伺服器端的 predict.js、rating.js（CommonJS 包成函式）。
+ * 一個檔案比四個檔案少了「其中一個剛好載入失敗」的機會（GitHub Pages 剛部署完偶爾會回 503）。
+ */
+function bundleStaticApi() {
+  const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+  const cjs = (name, src, preamble = '') => `const ${name} = (() => {\n${preamble}const module = { exports: {} };\n${src}\nreturn module.exports;\n})();\n`;
+  const data = read('public/js/static-data.js').replace(/^export\s+(?=(?:async\s+)?function|const|let|class)/gm, '');
+  const api = read('public/js/static-api.js').replace(/^import\s.*;\r?\n/gm, '');
+  if (/^import\s/m.test(api)) throw new Error('static-api.js 有無法處理的 import 寫法');
+  return [
+    '// 自動產生（scripts/build-public.js）：公開版的資料模組，請勿直接修改',
+    cjs('predictLib', read('lib/predict.js')),
+    cjs('ratingLib', read('lib/rating.js'), 'const require = () => self.TA; // 指標函式庫已由頁面載入成 window.TA\n'),
+    data,
+    api,
+  ].join('\n');
 }
 
 function buildFrontend(config) {
@@ -55,10 +70,8 @@ function buildFrontend(config) {
   copyDir(path.join(ROOT, 'public'), OUT);
   fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js'), path.join(OUT, 'vendor/lightweight-charts.js'));
-  fs.mkdirSync(path.join(OUT, 'js/lib'), { recursive: true });
-  fs.writeFileSync(path.join(OUT, 'js/lib/predict.js'), wrapCjs(fs.readFileSync(path.join(ROOT, 'lib/predict.js'), 'utf8')));
-  // rating.js 只依賴前後端共用的指標函式庫（頁面已用 <script> 載入成 window.TA）
-  fs.writeFileSync(path.join(OUT, 'js/lib/rating.js'), wrapCjs(fs.readFileSync(path.join(ROOT, 'lib/rating.js'), 'utf8'), { preamble: 'const require = () => self.TA;\n' }));
+  fs.writeFileSync(path.join(OUT, 'js/static-api.js'), bundleStaticApi());
+  fs.rmSync(path.join(OUT, 'js/static-data.js')); // 已併入上面的單一檔案
   fs.writeFileSync(path.join(OUT, 'config.js'), `window.TWS_CONFIG = ${JSON.stringify(config)};\n`);
   const indexFile = path.join(OUT, 'index.html');
   const html = fs.readFileSync(indexFile, 'utf8')
