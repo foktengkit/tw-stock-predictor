@@ -78,6 +78,8 @@ async function main() {
   buildFrontend(config);
   log(`前端完成；資料日期 ${dataDate}`);
 
+  // 先載入上一次成功的清單（存在 data/，雲端由 Actions 快取保存）：證交所偶爾回傳錯誤格式時可以沿用
+  stocks.loadCache();
   await stocks.refresh();
   const list = stocks.all();
   const byCode = new Map(list.map((s) => [s.code, s]));
