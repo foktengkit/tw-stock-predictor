@@ -12,16 +12,27 @@ const CFG = window.TWS_CONFIG || {};
 const VERSION = encodeURIComponent(CFG.builtAt || '');
 const INTRADAY = ['1m', '5m', '15m', '60m'];
 
+/** 網路錯誤或伺服器暫時錯誤（5xx）時重試一次；GitHub Pages 剛部署完的幾分鐘偶爾會這樣 */
+async function fetchData(rel) {
+  for (let attempt = 0; ; attempt++) {
+    let r;
+    try {
+      r = await fetch(`data/${rel}?v=${VERSION}`);
+    } catch (e) {
+      if (attempt < 1) { await new Promise((ok) => setTimeout(ok, 1500)); continue; }
+      throw new Error('網路連線失敗，請稍後再試');
+    }
+    if (r.status >= 500 && attempt < 1) { await new Promise((ok) => setTimeout(ok, 1500)); continue; }
+    if (!r.ok) throw Object.assign(new Error(r.status === 404 ? '沒有這檔的資料' : `讀取資料失敗（HTTP ${r.status}）`), { status: r.status });
+    return r.json();
+  }
+}
+
 const memo = new Map();
 function load(rel) {
   if (!memo.has(rel)) {
-    memo.set(rel, fetch(`data/${rel}?v=${VERSION}`).then(async (r) => {
-      if (!r.ok) {
-        memo.delete(rel);
-        throw Object.assign(new Error(r.status === 404 ? '沒有這檔的資料' : `讀取資料失敗（HTTP ${r.status}）`), { status: r.status });
-      }
-      return r.json();
-    }));
+    // 失敗的結果不留在快取裡，下次切換到這檔時會重新下載
+    memo.set(rel, fetchData(rel).catch((e) => { memo.delete(rel); throw e; }));
   }
   return memo.get(rel);
 }
