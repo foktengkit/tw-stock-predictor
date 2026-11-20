@@ -44,15 +44,16 @@ jobs:
         timeout-minutes: 310 # 第一次回補很久；逾時也會繼續下一步存檔，下次接著抓
         run: node lib/official/sync.js --daily-years 5 --chips-years 2.5 --revenue-years 5 --otc-daily-years 5
 
+      - name: 建置公開版
+        run: node scripts/build-public.js --out dist
+
+      # 放在建置之後：建置時更新的股票清單、休市日曆也要存起來，下次官方網站暫時連不上時可以沿用
       - name: 儲存官方資料庫
         if: always()
         uses: actions/cache/save@v4
         with:
           path: data
           key: official-data-${{ github.run_id }}
-
-      - name: 建置公開版
-        run: node scripts/build-public.js --out dist
 
       - uses: actions/upload-pages-artifact@v3
         with:
