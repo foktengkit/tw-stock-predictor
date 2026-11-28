@@ -34,7 +34,7 @@
 - **依法律限制設計架構**：轉播即時行情需要授權，所以分成兩個版本：在自己電腦執行的私人版有即時報價，公開版只放官方開放資料。介面用「偏多／偏空」，不用買賣字眼。→ [使用聲明](#使用聲明)
 - **同一份前端、兩種部署**：公開版沒有伺服器。前端的 `api()` 改讀靜態 JSON；預測模型和伺服器是同一份程式，打包後直接在瀏覽器執行。
 - **CI/CD**：每次推送都在 Node 22、24 與 Python 跑測試；測試沒過就不發布；發布後用 headless Chrome 實際打開網站，畫面正常、沒有 JavaScript 錯誤才算成功。→ [CI/CD](#cicd)
-- **從實測找出問題**：發現 GitHub 內建排程每次延遲 7–11 小時，改由外部排程觸發，再用「資料指紋」判斷有沒有新資料。官方資料公布後約 15 分鐘就上線；沒有新資料時半分鐘就結束。→ [為什麼用外部排程](#為什麼用外部排程cron-joborg)
+- **從實測找出問題**：發現 GitHub 內建排程每次延遲 7–11 小時，改由外部排程觸發，再用「資料指紋」判斷有沒有新資料。官方資料公布後約 15 分鐘就上線；沒有新資料時半分鐘就結束。→ [CI/CD](#cicd)
 - **不卡住即時推播**：因子檢驗在背景執行緒計算並快取；下載官方資料時限速、失敗會退避重試、中斷後可以接著抓。
 
 ## 啟動
@@ -270,25 +270,6 @@ npm run build:public                   # 輸出到 dist/
 4. **建置**：資料不完整（例如股票清單只拿到一個市場）就中止。
 5. **發布**到 GitHub Pages。
 6. **上線驗證**（`scripts/verify-site.js`）：等 CDN 換成這次的版本，檢查關鍵資料檔與資料日期，再用 Chrome 實際打開網站，確認 K 線、預測、籌碼都畫得出來，而且沒有任何 JavaScript 錯誤。
-
-### 為什麼用外部排程（cron-job.org）
-
-官方盤後資料是分批公布的：收盤行情約下午 2 點多、三大法人約下午 3–4 點、融資融券要到晚上。要在公布後馬上更新，就得在這段時間頻繁檢查。
-
-GitHub 內建的排程（`schedule`）不準時：實測設定 22:30 的排程，每次都延遲 7–11 小時，到隔天早上才執行。用 API 觸發（`workflow_dispatch`）則幾秒內就會開始，所以改由 cron-job.org 準時呼叫 API。大部分的觸發都沒有新資料，約半分鐘就結束；公開儲存庫的 Actions 不用錢。
-
-GitHub 內建排程仍保留在每個平日 22:23，當作 cron-job.org 萬一沒觸發時的備援。
-
-設定方式（只需要做一次）：
-
-1. **GitHub token**：Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token。Repository access 選「Only select repositories」→ `tw-stock-predictor`，Permissions 只開 **Actions: Read and write**。這個 token 只能觸發這個儲存庫的工作流程，不能改程式碼。
-2. **cron-job.org** 新增排程：
-   - URL：`https://api.github.com/repos/foktengkit/tw-stock-predictor/actions/workflows/publish.yml/dispatches`
-   - 時間：時區 Asia/Taipei，星期一到五，14–22 點，每 15 分鐘（0、15、30、45 分）
-   - Advanced → Request method：`POST`；Request body：`{"ref":"main"}`
-   - Headers：`Authorization: Bearer <token>`、`Accept: application/vnd.github+json`、`X-GitHub-Api-Version: 2022-11-28`、`Content-Type: application/json`
-   - 開啟失敗通知：token 過期時呼叫會失敗（HTTP 401），cron-job.org 會寄信提醒
-3. 按 Test run，回應 **204** 就成功，GitHub 的 Actions 頁面會出現一次「公開版網站」的執行。
 
 資料來源檢查會驗證數值之間的關係，例如「三大法人合計 = 外資 + 投信 + 自營商」，官方調整欄位時才抓得到。
 
