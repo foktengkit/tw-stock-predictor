@@ -11,7 +11,8 @@
     "sync": "node lib/official/sync.js --daily-years 5 --chips-years 2.5 --revenue-years 5",
     "factors": "node lib/factors.js",
     "build:public": "node scripts/build-public.js",
-    "check-sources": "node scripts/check-sources.js"
+    "check-sources": "node scripts/check-sources.js",
+    "verify-site": "node scripts/verify-site.js https://foktengkit.github.io/tw-stock-predictor/ --browser"
   },
   "engines": {
     "node": ">=22.13"

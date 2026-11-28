@@ -1,0 +1,49 @@
+# 持續整合：每次推送、每個 Pull Request 都自動跑全部測試
+name: 測試
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true # 同一分支連續推送時，只測最新的一次
+
+jobs:
+  node:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24] # package.json 要求 >= 22.13（內建 SQLite）
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: 前視偏差、因子檢驗、即時報價解析、公開版資料處理、股票清單
+        run: npm test
+
+  python:
+    name: Python 回測
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backtest/requirements.txt
+      - run: pip install -r backtest/requirements.txt
+      - name: 台股成本回測
+        working-directory: backtest
+        run: python test_tw_backtest.py

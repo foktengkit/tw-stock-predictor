@@ -5,7 +5,7 @@ name: 官方資料來源檢查
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 14 * * 1-5' # 平日台北時間 22:00（融資融券約晚間才公布）
+    - cron: '7 14 * * 1-5' # 平日台北時間 22:07（避開整點：GitHub 的排程在整點最容易延遲）
 
 jobs:
   check:

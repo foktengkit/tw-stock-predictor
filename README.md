@@ -1,5 +1,7 @@
 # 台股觀測站
 
+[![測試](https://github.com/foktengkit/tw-stock-predictor/actions/workflows/ci.yml/badge.svg)](https://github.com/foktengkit/tw-stock-predictor/actions/workflows/ci.yml) [![公開版網站](https://github.com/foktengkit/tw-stock-predictor/actions/workflows/publish.yml/badge.svg)](https://github.com/foktengkit/tw-stock-predictor/actions/workflows/publish.yml) [![官方資料來源檢查](https://github.com/foktengkit/tw-stock-predictor/actions/workflows/check-sources.yml/badge.svg)](https://github.com/foktengkit/tw-stock-predictor/actions/workflows/check-sources.yml)
+
 台灣股市即時看盤 + 股價預測網站，介面參考 TradingView：中間是可互動的 K 線圖，右側是自選股與五檔報價，下方是 AI 預測、技術分析與熱力圖。
 
 有兩個版本：
@@ -186,11 +188,7 @@ Yahoo 的歷史 K 棒只算盤中整股。所以零股比例越高的股票，�
 
 網址：<https://foktengkit.github.io/tw-stock-predictor/>
 
-公開版沒有伺服器，是每天重新產生的靜態網站：
-
-1. **GitHub Actions**（`.github/workflows/publish.yml`）每個平日台北時間 22:30 執行：從 Actions 快取還原官方資料庫，補抓新資料（第一次約 3 小時，之後幾分鐘）。
-2. `scripts/build-public.js` 把資料庫轉成靜態 JSON：每檔股票的日 K、籌碼與營收、報價、因子檢驗、休市日曆、除權息預告，連同前端一起輸出到 `dist/`（約 150 MB）。
-3. 發布到 GitHub Pages。建置失敗（例如官方網站暫時連不上）時不會發布，網站維持前一天的版本。
+公開版沒有伺服器，是每天重新產生的靜態網站：`scripts/build-public.js` 把官方資料庫轉成靜態 JSON（每檔股票的日 K、籌碼與營收、報價、因子檢驗、休市日曆、除權息預告），連同前端一起輸出到 `dist/`（約 150 MB），再發布到 GitHub Pages。自動化流程見下方「[CI/CD](#cicd)」。
 
 前端與私人版是同一份程式。`public/js/util.js` 的 `api()` 在公開版改呼叫 `public/js/static-api.js` 讀靜態檔案；預測模型與技術評等直接在瀏覽器計算。
 
@@ -211,7 +209,36 @@ npm run build:public                   # 輸出到 dist/
 
 `dist/` 要用網頁伺服器開啟（例如 `python -m http.server -d dist`），直接開檔案會因瀏覽器安全限制無法讀取資料。
 
-另外，`.github/workflows/check-sources.yml` 每個平日 22:00 檢查所有官方資料來源：連得上嗎？格式有沒有變？（例如「三大法人合計 = 外資 + 投信 + 自營商」）。失敗時 GitHub 會寄信通知。也可以在本機執行 `npm run check-sources`。
+## CI/CD
+
+三個 GitHub Actions 工作流程，任何一個失敗 GitHub 都會寄信通知：
+
+| 工作流程 | 何時執行 | 做什麼 |
+| --- | --- | --- |
+| **測試**（`ci.yml`） | 每次推送、每個 Pull Request | Node 22 與 24 跑全部 Node 測試，Python 3.12 跑回測測試 |
+| **公開版網站**（`publish.yml`） | 網站相關程式推送到 main；每個平日 22:23；手動 | 測試 → 同步官方資料 → 建置 → 發布 → 上線驗證 |
+| **官方資料來源檢查**（`check-sources.yml`） | 每個平日 22:07 | 12 個官方來源連得上嗎？格式有沒有變？ |
+
+發布流程的每一關都會擋下有問題的版本，網站維持前一版：
+
+1. **測試**：沒過就不建置、不發布。
+2. **同步官方資料**：資料庫存在 Actions 快取，每次只補新資料（第一次約 3 小時，之後約 1 分鐘）。
+3. **建置**：資料不完整（例如股票清單只拿到一個市場）就中止。
+4. **發布**到 GitHub Pages。
+5. **上線驗證**（`scripts/verify-site.js`）：等 CDN 換成這次的版本，檢查關鍵資料檔與資料日期，再用 Chrome 實際打開網站，確認 K 線、預測、籌碼都畫得出來，而且沒有任何 JavaScript 錯誤。
+
+資料來源檢查會驗證數值之間的關係，例如「三大法人合計 = 外資 + 投信 + 自營商」，官方調整欄位時才抓得到。
+
+在本機執行同樣的檢查：
+
+```bash
+npm test                 # 全部 Node 測試
+python backtest/test_tw_backtest.py
+npm run check-sources    # 官方資料來源
+npm run verify-site      # 線上網站（需要 Chrome）
+```
+
+排程避開整點與半點，因為 GitHub 的排程在這些時間最擁擠，實測曾延遲 8–11 小時。
 
 ## Python 虛擬交易回測（backtest/）
 
@@ -251,6 +278,7 @@ lib/
 scripts/
   build-public.js    公開版建置：官方資料 → 靜態 JSON + 前端（dist/）
   check-sources.js   官方資料來源健康檢查
+  verify-site.js     公開版上線驗證（HTTP + 用 Chrome 實際打開）
 test/
   leakage.test.js    前視偏差、時間切分、除權息、技術指標因果性測試（npm test）
   factors.test.js    因子檢驗的前視偏差測試（月營收公布時間、隔日進場、除權息）
@@ -264,7 +292,8 @@ public/
   js/static-api.js   公開版：/api/* 改讀靜態檔案，預測在瀏覽器計算
   js/*.js            自選股、報價、搜尋、預測、技術分析、熱力圖、WebSocket
 .github/workflows/
-  publish.yml        公開版每日建置與發布
+  ci.yml             每次推送都跑全部測試
+  publish.yml        公開版：測試、建置、發布、上線驗證
   check-sources.yml  官方資料來源每日檢查
 ```
 
