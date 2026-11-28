@@ -51,7 +51,7 @@ export function renderQuote(el, symbol, q) {
     <div class="q-full">${esc(q.fullName || '')}</div>
     <div class="q-price ${cls}"><b class="num">${fmtPrice(q.price)}</b><span class="num">${arrow(q.change)} ${fmtChange(q.change)} (${fmtPct(q.changePct)})</span></div>
     ${q.static
-      ? `<div class="q-time" title="資料來自證交所、櫃買中心的每日收盤行情，每個交易日晚間更新">收盤 ${esc(t.slice(0, 10))} · 官方盤後資料（非即時）</div>`
+      ? `<div class="q-time" title="資料來自證交所、櫃買中心的每日收盤行情，官方公布後約 15 分鐘內更新">收盤 ${esc(t.slice(0, 10))} · 官方盤後資料（非即時）</div>`
       : `<div class="q-time" title="證交所公開即時資訊：快照約 25 秒更新一次，比實際時間延遲約 30–60 秒">最後成交 ${esc(t)} · 證交所公開資料（延遲約 1 分鐘內）</div>`}
     <div class="q-grid">
       ${cell('開盤', fmtPrice(q.open), pcls(q.open))}

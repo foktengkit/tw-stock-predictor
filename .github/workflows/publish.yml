@@ -1,5 +1,5 @@
-# 公開版網站（持續部署）：測試 → 同步官方盤後資料 → 建置 → 發布到 GitHub Pages → 上線驗證
-# 官方資料庫存在 Actions 快取裡，每次只補新資料（第一次約 3 小時，之後幾分鐘）
+# 公開版網站（持續部署）：測試 → 同步官方盤後資料 → 有新資料才建置 → 發布到 GitHub Pages → 上線驗證
+# 官方資料庫存在 Actions 快取裡，每次只補新資料（第一次約 3 小時，之後幾十秒）
 name: 公開版網站
 
 on:
@@ -10,23 +10,31 @@ on:
       - 'public/**'
       - 'lib/**'
       - 'scripts/build-public.js'
+      - 'scripts/check-new-data.js'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/publish.yml'
-  # 每個交易日更新資料。避開整點與半點：GitHub 的排程在這些時間最擁擠、最容易延遲
-  schedule:
-    - cron: '23 14 * * 1-5' # 平日台北時間 22:23（融資融券約晚間才公布；還沒公布的隔天會補上）
+  # 主要觸發：外部排程 cron-job.org 在平日 14:00–22:45 每 15 分鐘呼叫 GitHub API（workflow_dispatch，幾秒內就會開始）
+  # 官方資料是分批公布的（收盤行情、三大法人、融資融券），每一批出來後約 15 分鐘內就會上線；沒有新資料就半分鐘結束
   workflow_dispatch:
     inputs:
+      force:
+        description: 沒有新資料也重新建置、發布
+        type: boolean
+        default: false
       deploy:
         description: 建置完成後發布到 GitHub Pages
         type: boolean
         default: true
+  # 備援：GitHub 內建排程常延遲好幾個小時，只用來補 cron-job.org 萬一沒觸發的情況
+  schedule:
+    - cron: '23 14 * * 1-5'
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write # 清理舊的資料庫快取
 
 concurrency:
   group: pages
@@ -38,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     outputs:
+      publish: ${{ steps.check.outputs.publish }}
       built_at: ${{ steps.build.outputs.built_at }}
     steps:
       - uses: actions/checkout@v4
@@ -58,32 +67,59 @@ jobs:
           key: official-data-${{ github.run_id }}
           restore-keys: official-data-
 
+      - name: 同步前的資料指紋
+        id: before
+        run: node scripts/check-new-data.js
+
       - name: 同步官方資料
         timeout-minutes: 310 # 第一次回補很久；逾時也會存檔，下次接著抓
         run: node lib/official/sync.js --daily-years 5 --chips-years 2.5 --revenue-years 5 --otc-daily-years 5
 
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - name: 有沒有新資料（沒有就不建置、不發布）
+        id: check
+        env:
+          FORCE: ${{ (github.event_name == 'push' || inputs.force == true) && 'true' || 'false' }}
+        run: node scripts/check-new-data.js --before "${{ steps.before.outputs.fingerprint }}" --site "${{ steps.pages.outputs.base_url }}"
+
       - name: 建置公開版
         id: build
+        if: steps.check.outputs.publish == 'true'
         run: |
           node scripts/build-public.js --out dist
           echo "built_at=$(node -p "require('./dist/data/meta.json').builtAt")" >> "$GITHUB_OUTPUT"
 
-      # 放在建置之後：建置時更新的股票清單、休市日曆也要存起來，下次官方網站暫時連不上時可以沿用
+      # 有抓到新資料、或有建置（建置時更新的股票清單、休市日曆也要存，官方網站暫時連不上時可以沿用）才存；
+      # 同步中途失敗或逾時也要存，下次接著抓
       - name: 儲存官方資料庫
-        if: always() && steps.restore.outcome == 'success'
+        id: save
+        if: always() && steps.restore.outcome == 'success' && (steps.check.outputs.db_changed != 'false' || steps.build.outcome == 'success')
         uses: actions/cache/save@v4
         with:
           path: data
           key: official-data-${{ github.run_id }}
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: 清理舊的資料庫快取（保留最新 3 份）
+        if: always() && steps.save.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh cache list --key official-data- --sort created_at --order desc --limit 100 --json id --jq '.[3:][].id' \
+            | xargs -r -n1 gh cache delete
+
+      - if: steps.check.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
     name: 發布
     needs: build
-    if: github.event_name != 'workflow_dispatch' || inputs.deploy
+    if: needs.build.outputs.publish == 'true' && (github.event_name != 'workflow_dispatch' || inputs.deploy)
     runs-on: ubuntu-latest
     outputs:
       page_url: ${{ steps.deployment.outputs.page_url }}

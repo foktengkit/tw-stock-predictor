@@ -20,6 +20,7 @@ const holidays = require('../lib/holidays');
 const dividends = require('../lib/dividends');
 const heatmap = require('../lib/heatmap');
 const factors = require('../lib/factors');
+const { fingerprint } = require('../lib/official/fingerprint');
 
 const t0 = Date.now();
 const log = (msg) => console.log(`[build ${((Date.now() - t0) / 1000).toFixed(0).padStart(4)}s] ${msg}`);
@@ -191,7 +192,11 @@ async function main() {
   writeJson('dividends.json', div);
   log(`休市日曆、除權息預告（${Object.keys(div).length} 檔）完成`);
 
-  writeJson('meta.json', { ...config, coverage: official.coverage(), files: { candles: files, chips: chipFiles } });
+  // dataFingerprint、commit：下次排程用來判斷「有沒有新資料、線上是不是目前的程式」（scripts/check-new-data.js）
+  writeJson('meta.json', {
+    ...config, dataFingerprint: fingerprint(), commit: process.env.GITHUB_SHA || null,
+    coverage: official.coverage(), files: { candles: files, chips: chipFiles },
+  });
   log(`完成：${OUT}`);
 }
 

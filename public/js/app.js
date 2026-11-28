@@ -344,14 +344,14 @@ api(`/api/quotes?codes=${watchlist.codes.join(',')}`).then((j) => watchlist.upda
 
 // ---------- 公開版 ----------
 const ABOUT = `<b>關於本站（公開版）</b><br>
-  個人研究專案。資料來自臺灣證券交易所、證券櫃檯買賣中心、公開資訊觀測站的<b>盤後公開資料</b>，每個交易日晚間自動更新，<b>不是即時報價</b>。<br>
+  個人研究專案。資料來自臺灣證券交易所、證券櫃檯買賣中心、公開資訊觀測站的<b>盤後公開資料</b>，每個交易日下午到晚上，官方資料一公布就自動更新，<b>不是即時報價</b>。<br>
   預測與技術指標經回測驗證<b>沒有可靠的預測力</b>，僅供參考，<b>不構成任何投資建議</b>。<br>
   <a href="https://github.com/foktengkit/tw-stock-predictor" target="_blank" rel="noopener">原始碼與方法說明</a>`;
 if (STATIC) {
   for (const b of $$('#tfGroup button')) if (INTRADAY.includes(b.dataset.tf)) b.hidden = true;
   const conn = $('#conn');
   conn.className = 'conn static';
-  conn.title = '公開版：每個交易日晚間依官方盤後資料更新';
+  conn.title = '公開版：每個交易日下午到晚上，官方盤後資料（收盤行情、三大法人、融資融券）公布後約 15 分鐘內更新';
   conn.querySelector('.txt').textContent = '每日盤後更新';
   const about = document.createElement('button');
   about.className = 'icon-btn about-btn';

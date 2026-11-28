@@ -93,7 +93,7 @@ export class CalendarPanel {
       <div class="chk-row"><span>最新收盤資料</span><span>${md(c.dataDate)}</span></div>
       <div class="chk-row"><span>網站更新時間</span><span>${ago(c.builtAt)}</span></div>
       <div class="chk-row"><span>證交所休市日曆</span><span>${years.length ? `${years.join('、')} 年` : '<span class="up">未取得</span>'}</span></div>
-      <div class="cal-note">公開版每個交易日晚間依官方盤後資料自動更新，不提供盤中即時報價；颱風等臨時休市會在當天晚上的更新後反映。</div>`;
+      <div class="cal-note">公開版在每個交易日下午到晚上，依官方盤後資料陸續自動更新，不提供盤中即時報價；颱風等臨時休市會在當天晚上的更新後反映。</div>`;
   }
 }
 
